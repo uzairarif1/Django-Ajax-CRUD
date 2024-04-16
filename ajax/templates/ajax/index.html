@@ -1,0 +1,171 @@
+
+<head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/js/bootstrap.bundle.min.js"></script>    
+</head>
+
+<div class="container mt-5">
+    <!-- Form to add student -->
+    <div class="row">
+        <div class="col-md-6">
+            <h1>Add/Update Student</h1>
+            <form id='post-form' method='POST'>
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type='text' class="form-control" name='name' id='name' />
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type='email' class="form-control" name='email' id='email' />
+                </div>
+                <div class="form-group">
+                    <label for="major">Major</label>
+                    <input type='text' class="form-control" name='major' id='major' />
+                </div>
+                <button type="submit" class="btn btn-primary">Add/Update Student</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Students List -->
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <h1>Students List</h1>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Major</th>
+                        <th>Action</th> <!-- New column for edit and delete buttons -->
+                    </tr>
+                </thead>
+                <tbody id='dataa'>
+                    <!-- Student data will be appended here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function () {
+        // Function to fetch and display student data
+        function fetchStudentData() {
+            $.ajax({
+                type: 'GET',
+                url: '/show',
+                success: function (response) {
+                    $('#dataa').empty();
+                    $.each(response.Profile, function (key, student) {
+                        var row = "<tr>" +
+                            "<td>" + student.id + "</td>" +
+                            "<td>" + student.name + "</td>" +
+                            "<td>" + student.email + "</td>" +
+                            "<td>" + student.major + "</td>" +
+                            "<td>" +
+                            "<button class='btn btn-info btn-sm edit-btn' data-sid='" + student.id + "'>Edit</button>" + " "+
+                            "<button class='btn btn-danger btn-sm delete-btn' data-sid='" + student.id + "'>Delete</button>" +
+                            "</td>" +
+                            "</tr>";
+                        $('#dataa').append(row);
+                    });
+                },
+                error: function () {
+                    alert('An error occurred while fetching student data');
+                }
+            });
+        }
+
+        // AJAX function to submit student data
+        $('#post-form').submit(function (e) {
+            e.preventDefault();
+            $.ajax({
+                type: 'POST',
+                url: '/add',
+                data: $(this).serialize(),
+                success: function (data) {
+                    fetchStudentData();
+                    $('#id').val(data.id);
+                    $('#name').val(data.name);
+                    $('#email').val(data.email);
+                    $('#major').val(data.major);
+                    
+                    alert('Student added successfully!');
+                },
+                error: function () {
+                    alert('Error occurred while adding student');
+                }
+            });
+        });
+
+        // AJAX function to edit student data
+        $(document).on('click', '.edit-btn', function () {
+            var studentId = $(this).data("sid");
+            $.ajax({
+                type: 'GET',
+                url: '/edit/' + studentId + '/',
+                success: function (data) {
+                    $.each(data, function (key, value) {
+                        $('#' + key).val(value);
+                    });
+                    
+                },
+                error: function () {
+                    alert('Error occurred while fetching student data');
+                }
+            });
+
+            $('#post-form').off('submit').on('submit', function (e) {
+                e.preventDefault();
+                $.ajax({
+                    type: 'POST',
+                    url: '/edit/' + studentId + '/',
+                    data: $(this).serialize(),
+                    success: function () {
+                        fetchStudentData();
+                        alert('Student data updated successfully!');
+                        $('#post-form')[0].reset();
+                    },
+                    error: function () {
+                        alert('Error occurred while updating student data');
+                    }
+                });
+            });
+        });
+
+        // AJAX function to delete student
+        $(document).on('click', '.delete-btn', function () {
+            var studentId = $(this).attr("data-sid");
+            if (confirm('Are you sure you want to delete this student?')) {
+                $.ajax({
+                    
+                    method:'POST',
+                    url: '/delete/' + studentId + '/',
+                    headers: {
+                        'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),  // Include CSRF token in request headers
+                    },
+                    success: function (data) {
+                        fetchStudentData(); // Refresh student list after deletion
+                        console.log('successfully deleted')
+                    },
+                    error: function (xhr, errmsg, err) {
+                        alert('Error occurred while deleting student');
+                    }
+                });
+            }
+        });
+
+        // Fetch and display student data initially
+        fetchStudentData();
+
+        // Fetch and display student data every 5 seconds
+        setInterval(fetchStudentData, 5000);
+    });
+</script>
+
+
